@@ -286,15 +286,14 @@ private fun BrainCard() {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("Cérebro (IA)", color = Color.White, modifier = Modifier.weight(1f))
             Text(
-                if (provider.isNotEmpty()) "● $provider" else "○ Toque para configurar",
-                color = if (provider.isNotEmpty()) Cyan else Color(0xFFFFB454), fontSize = 13.sp,
+                "● $provider", color = Cyan, fontSize = 13.sp,
             )
         }
         if (open) {
             Spacer(Modifier.height(8.dp))
             Text(
-                "Cole uma chave gratuita do Google Gemini para o Jarvis responder qualquer pergunta, " +
-                    "decidir sozinho o que fazer e enxergar pela câmera.",
+                "O Jarvis já vem com IA pronta. Opcional (avançado): cole sua própria chave do Gemini " +
+                    "ou da Claude para usar sem limite diário. Deixe vazio para usar o padrão.",
                 color = Color.Gray, fontSize = 12.sp,
             )
             Spacer(Modifier.height(8.dp))
@@ -316,7 +315,7 @@ private fun BrainCard() {
                     AiBrain.saveKey(ctx, key)
                     provider = AiBrain.providerName(ctx)
                     open = false
-                    Jarvis.add("Jarvis: " + if (provider.isNotEmpty()) "Cérebro $provider conectado, senhor." else "Chave removida.")
+                    Jarvis.add("Jarvis: Cérebro $provider conectado, senhor.")
                 }) { Text("Salvar") }
             }
         }

@@ -51,7 +51,6 @@ class ActionExecutor(private val ctx: Context) {
                     ""
                 }
                 "descrever_foto" -> {
-                    if (!AiBrain.hasKey(ctx)) return "Para eu enxergar, configure a chave de IA no aplicativo, senhor."
                     launch(
                         Intent(ctx, CaptureActivity::class.java)
                             .putExtra(CaptureActivity.EXTRA_DESCRIBE, true)

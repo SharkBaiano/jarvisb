@@ -15,8 +15,8 @@ import java.util.Locale
 
 /**
  * Cérebro de IA do Jarvis.
- * - Chave do Google Gemini (grátis em aistudio.google.com/apikey) → usa Gemini.
- * - Chave começando com "sk-ant" → usa Claude.
+ * - Padrão: servidor do Jarvis (Supabase), que guarda a chave do Gemini. O usuário não configura nada.
+ * - Avançado: o usuário pode colar a própria chave (Gemini "AIza..." ou Claude "sk-ant...").
  */
 object AiBrain {
     private const val PREFS = "jarvis"
@@ -24,6 +24,12 @@ object AiBrain {
     private val GEMINI_MODELS = listOf("gemini-3.8-flash", "gemini-3.5-flash-lite")
     private const val CLAUDE_MODEL = "claude-haiku-5-5"
     private const val MAX_HISTORY = 6
+
+    // Servidor do Jarvis. Esta chave é pública por natureza (identifica o projeto);
+    // a chave da IA fica só no servidor.
+    private const val CLOUD_URL = "https://jjxrckxksxodpelzvhsn.supabase.co/functions/v1/jarvis-ai"
+    private const val CLOUD_ANON_KEY =
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpqeHJja3hrc3hvZHBlbHp2aHNuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE0MDY3NzIsImV4cCI6MjEwNjk4Mjc3Mn0.NM8Io6eBz0MxlUD9R6rvefO0ThFQV6EKnkR3hf3Umi0"
 
     private val history = mutableListOf<Pair<String, String>>()
     private var appNames: String? = null
@@ -39,26 +45,27 @@ object AiBrain {
 
     private fun key(ctx: Context): String = savedKey(ctx).ifBlank { BuildConfig.CLAUDE_API_KEY }
 
-    fun hasKey(ctx: Context) = key(ctx).isNotBlank()
+    fun hasKey(ctx: Context) = true // o servidor do Jarvis sempre está disponível
 
     fun providerName(ctx: Context): String = when {
-        !hasKey(ctx) -> ""
-        key(ctx).startsWith("sk-ant") -> "Claude"
-        else -> "Gemini"
+        key(ctx).isBlank() -> "Jarvis Cloud"
+        key(ctx).startsWith("sk-ant") -> "Claude (sua chave)"
+        else -> "Gemini (sua chave)"
+    }
+
+    private fun deviceId(ctx: Context): String {
+        val prefs = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        return prefs.getString("device_id", null) ?: java.util.UUID.randomUUID().toString().also {
+            prefs.edit().putString("device_id", it).apply()
+        }
     }
 
     // ---------- comandos e conversa ----------
 
     suspend fun interpret(ctx: Context, text: String): Command = withContext(Dispatchers.IO) {
         val key = key(ctx)
-        if (key.isBlank()) {
-            return@withContext Command(
-                "responder",
-                mapOf("texto" to "Para responder isso eu preciso do meu cérebro de IA, senhor. Toque em Cérebro no aplicativo e cole uma chave gratuita do Gemini."),
-            )
-        }
         val system = systemPrompt(ctx)
-        val result = if (key.startsWith("sk-ant")) askClaude(key, system, text) else askGemini(key, system, text)
+        val result = if (key.startsWith("sk-ant")) askClaude(key, system, text) else askGemini(ctx, key, system, text)
         result.fold(
             onSuccess = { raw ->
                 remember(text, raw)
@@ -71,7 +78,6 @@ object AiBrain {
     /** Recebe uma foto (JPEG) e responde a pergunta sobre ela. */
     suspend fun describeImage(ctx: Context, jpeg: ByteArray, question: String): String = withContext(Dispatchers.IO) {
         val key = key(ctx)
-        if (key.isBlank()) return@withContext "Para eu enxergar, configure a chave de IA no aplicativo, senhor."
         val b64 = Base64.encodeToString(jpeg, Base64.NO_WRAP)
         val system = "Você é o J.A.R.V.I.S. Responda em português do Brasil, em no máximo 3 frases curtas, " +
             "sem markdown, como quem fala em voz alta. Trate o usuário por senhor."
@@ -85,7 +91,7 @@ object AiBrain {
             val parts = JSONArray()
                 .put(JSONObject().put("inline_data", JSONObject().put("mime_type", "image/jpeg").put("data", b64)))
                 .put(JSONObject().put("text", question))
-            geminiCall(key, system, JSONArray().put(JSONObject().put("role", "user").put("parts", parts)), json = false)
+            gemini(ctx, key, system, JSONArray().put(JSONObject().put("role", "user").put("parts", parts)), json = false)
         }
         result.getOrElse { it.message ?: "Não consegui analisar a imagem." }
             .replace(Regex("[*#_`]"), "").trim()
@@ -93,13 +99,33 @@ object AiBrain {
 
     // ---------- provedores ----------
 
-    private fun askGemini(key: String, system: String, text: String): Result<String> {
+    private fun askGemini(ctx: Context, key: String, system: String, text: String): Result<String> {
         val contents = JSONArray()
         synchronized(history) {
             history.forEach { (u, a) -> contents.put(geminiMsg("user", u)); contents.put(geminiMsg("model", a)) }
         }
         contents.put(geminiMsg("user", text))
-        return geminiCall(key, system, contents, json = true)
+        return gemini(ctx, key, system, contents, json = true)
+    }
+
+    /** Sem chave própria → servidor do Jarvis; com chave → direto no Google. */
+    private fun gemini(ctx: Context, key: String, system: String, contents: JSONArray, json: Boolean): Result<String> =
+        if (key.isBlank()) cloudCall(ctx, system, contents, json) else geminiCall(key, system, contents, json)
+
+    private fun cloudCall(ctx: Context, system: String, contents: JSONArray, json: Boolean): Result<String> {
+        val body = JSONObject()
+            .put("device", deviceId(ctx))
+            .put("system", system)
+            .put("contents", contents)
+            .put("json", json)
+        val (code, resp) = try {
+            post(CLOUD_URL, mapOf("Authorization" to "Bearer $CLOUD_ANON_KEY", "apikey" to CLOUD_ANON_KEY), body)
+        } catch (e: Exception) {
+            return Result.failure(Exception("Estou sem conexão com a internet, senhor."))
+        }
+        val obj = runCatching { JSONObject(resp) }.getOrNull()
+        if (code in 200..299 && obj != null && obj.has("text")) return Result.success(obj.getString("text"))
+        return Result.failure(Exception(obj?.optString("error")?.ifBlank { null } ?: "O servidor do Jarvis não respondeu ($code)."))
     }
 
     private fun geminiMsg(role: String, t: String) =
