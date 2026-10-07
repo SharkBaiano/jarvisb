@@ -28,7 +28,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import android.net.Uri
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -108,6 +111,7 @@ class MainActivity : ComponentActivity() {
             Manifest.permission.RECORD_AUDIO,
             Manifest.permission.READ_CONTACTS,
             Manifest.permission.CALL_PHONE,
+            Manifest.permission.CAMERA,
         )
         if (Build.VERSION.SDK_INT >= 33) list += Manifest.permission.POST_NOTIFICATIONS
         return list.toTypedArray()
@@ -225,6 +229,9 @@ private fun JarvisScreen(
                 )
             }
 
+            Spacer(Modifier.height(8.dp))
+            BrainCard()
+
             if (recording != null) {
                 Spacer(Modifier.height(8.dp))
                 Button(
@@ -260,6 +267,57 @@ private fun JarvisScreen(
                 )
                 Spacer(Modifier.width(8.dp))
                 Button(onClick = { if (typed.isNotBlank()) { onSend(typed); typed = "" } }) { Text("Enviar") }
+            }
+        }
+    }
+}
+
+@Composable
+private fun BrainCard() {
+    val ctx = LocalContext.current
+    var open by remember { mutableStateOf(false) }
+    var key by remember { mutableStateOf(AiBrain.savedKey(ctx)) }
+    var provider by remember { mutableStateOf(AiBrain.providerName(ctx)) }
+
+    Column(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Panel)
+            .clickable { open = !open }.padding(14.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("Cérebro (IA)", color = Color.White, modifier = Modifier.weight(1f))
+            Text(
+                if (provider.isNotEmpty()) "● $provider" else "○ Toque para configurar",
+                color = if (provider.isNotEmpty()) Cyan else Color(0xFFFFB454), fontSize = 13.sp,
+            )
+        }
+        if (open) {
+            Spacer(Modifier.height(8.dp))
+            Text(
+                "Cole uma chave gratuita do Google Gemini para o Jarvis responder qualquer pergunta, " +
+                    "decidir sozinho o que fazer e enxergar pela câmera.",
+                color = Color.Gray, fontSize = 12.sp,
+            )
+            Spacer(Modifier.height(8.dp))
+            OutlinedTextField(
+                value = key, onValueChange = { key = it }, singleLine = true,
+                visualTransformation = PasswordVisualTransformation(),
+                placeholder = { Text("Chave (AIza...)") }, modifier = Modifier.fillMaxWidth(),
+            )
+            Spacer(Modifier.height(8.dp))
+            Row {
+                OutlinedButton(onClick = {
+                    ctx.startActivity(
+                        Intent(Intent.ACTION_VIEW, Uri.parse("https://aistudio.google.com/apikey"))
+                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    )
+                }) { Text("Pegar chave grátis") }
+                Spacer(Modifier.width(8.dp))
+                Button(onClick = {
+                    AiBrain.saveKey(ctx, key)
+                    provider = AiBrain.providerName(ctx)
+                    open = false
+                    Jarvis.add("Jarvis: " + if (provider.isNotEmpty()) "Cérebro $provider conectado, senhor." else "Chave removida.")
+                }) { Text("Salvar") }
             }
         }
     }

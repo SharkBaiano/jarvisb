@@ -13,14 +13,13 @@ No app, toque em **Acessibilidade** → encontre **Jarvis** → ative.
 
 > Android 13+: se aparecer "configuração restrita", vá em **Configurações → Apps → Jarvis → ⋮ (canto superior) → Permitir configurações restritas** e tente de novo.
 
-### (Opcional) Cérebro com IA
-Para o Jarvis entender pedidos fora da lista e responder perguntas, crie uma chave em https://console.anthropic.com e adicione no arquivo `local.properties` (na raiz do projeto):
+### Cérebro com IA (grátis)
+Para o Jarvis responder qualquer pergunta, decidir sozinho o que fazer e enxergar pela câmera:
+1. Acesse https://aistudio.google.com/apikey (entre com sua conta Google) e clique em **Create API key**.
+2. Copie a chave (começa com `AIza`).
+3. No Jarvis, toque em **Cérebro (IA)**, cole a chave e toque em **Salvar**.
 
-```
-CLAUDE_API_KEY=sk-ant-...
-```
-
-Sem a chave, ele funciona normalmente com os comandos abaixo (offline e sem custo).
+A chave fica guardada só no seu celular. O plano gratuito do Gemini tem limite de uso por minuto/dia; se passar, o Jarvis avisa e volta a funcionar depois. Também aceita chave da Claude (`sk-ant-...`).
 
 ## Como usar
 - **Toque no círculo** e fale um comando, ou
@@ -39,6 +38,10 @@ Sem a chave, ele funciona normalmente com os comandos abaixo (offline e sem cust
 | "Comece a gravar" / "Grave a tela" / "Pare a gravação" | Grava áudio ou tela |
 | "Liga a lanterna" / "Desliga a lanterna" | Lanterna |
 | "Volte" / "Vá para a tela inicial" / "Que horas são" | Sistema |
+| "Tire uma foto" / "Tira uma selfie" | Contagem 3-2-1 e salva em Pictures/Jarvis |
+| "Abra a câmera" / "Grave um vídeo" | Abre a câmera do celular |
+| "O que você está vendo?" / "O que é isso?" | Tira uma foto e a IA descreve (precisa da chave) |
+| Qualquer pergunta: "Quem descobriu o Brasil?", "Me conta uma piada", "Quanto é 15% de 230?" | A IA responde em voz alta e lembra da conversa |
 | "Pare de ouvir" | Desliga a escuta contínua |
 
 Gravações ficam em `Android/data/com.jarvis.assistant/files/Music` (áudio) e `.../Movies` (tela).

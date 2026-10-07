@@ -11,6 +11,7 @@ import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraManager
 import android.net.Uri
 import android.provider.ContactsContract.CommonDataKinds.Phone
+import android.provider.MediaStore
 import androidx.core.content.ContextCompat
 import java.util.Calendar
 
@@ -33,6 +34,30 @@ class ActionExecutor(private val ctx: Context) {
                 "gravar_tela" -> {
                     launch(Intent(ctx, MainActivity::class.java).setAction(MainActivity.ACTION_SCREEN_RECORD))
                     "Autorize a gravação da tela, senhor."
+                }
+                "abrir_camera" -> {
+                    launch(Intent(MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA))
+                    "Abrindo a câmera."
+                }
+                "filmar" -> {
+                    launch(Intent(MediaStore.INTENT_ACTION_VIDEO_CAMERA))
+                    "Câmera de vídeo pronta, senhor."
+                }
+                "tirar_foto" -> {
+                    launch(
+                        Intent(ctx, CaptureActivity::class.java)
+                            .putExtra(CaptureActivity.EXTRA_FRONT, p["camera"] == "frontal")
+                    )
+                    ""
+                }
+                "descrever_foto" -> {
+                    if (!AiBrain.hasKey(ctx)) return "Para eu enxergar, configure a chave de IA no aplicativo, senhor."
+                    launch(
+                        Intent(ctx, CaptureActivity::class.java)
+                            .putExtra(CaptureActivity.EXTRA_DESCRIBE, true)
+                            .putExtra(CaptureActivity.EXTRA_QUESTION, p["pergunta"].orEmpty().ifBlank { "O que você está vendo?" })
+                    )
+                    "Deixe-me ver."
                 }
                 "voltar" -> global(AccessibilityService.GLOBAL_ACTION_BACK, "Voltando.")
                 "home" -> global(AccessibilityService.GLOBAL_ACTION_HOME, "Tela inicial.")

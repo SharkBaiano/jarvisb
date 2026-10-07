@@ -13,6 +13,17 @@ object CommandParser {
 
     // A ordem importa: regras mais específicas primeiro.
     private val rules: List<Pair<Regex, (MatchResult) -> Command>> = listOf(
+        // Câmera
+        r("""(?:tir\S*|bat\S*|faz\S*|fa[cç]a)\s+(?:uma\s+)?(?:selfie|foto\s+(?:com\s+a\s+)?(?:c[aâ]mera\s+)?(?:frontal|da\s+frente))""") to { _ ->
+            cmd("tirar_foto", "camera" to "frontal")
+        },
+        r("""(?:tir\S*|bat\S*|faz\S*|fa[cç]a)\s+(?:uma\s+)?foto""") to { _ -> cmd("tirar_foto", "camera" to "traseira") },
+        r("""o\s+que\s+(?:voc[eê]\s+)?(?:est[aá]\s+vendo|v[eê]|[eé]\s+isso)|descrev\S*\s+(?:o\s+que|isso|a\s+cena)|(?:olh\S*|veja)\s+(?:isso|isto|aqui)""") to { m ->
+            cmd("descrever_foto", "pergunta" to m.value)
+        },
+        r("""(?:abr\S*|lig\S*)\s+(?:a\s+)?c[aâ]mera\s+de\s+v[ií]deo|^(?:filme|filmar|grav\S*\s+(?:um\s+)?v[ií]deo)""") to { _ -> cmd("filmar") },
+        r("""(?:abr\S*|lig\S*)\s+(?:a\s+)?c[aâ]mera""") to { _ -> cmd("abrir_camera") },
+
         // Gravações
         r("""^(?:pare|parar|para|finalize|termine)\s+(?:a\s+|de\s+)?grava\S*""") to { _ -> cmd("parar_gravacao") },
         r("""grav\S*\s+(?:a\s+)?tela""") to { _ -> cmd("gravar_tela") },
